@@ -9,7 +9,7 @@
 '''
 import configparser
 import time
-
+from threading import Thread
 
 class BaseConfig(object):
     pass
@@ -33,6 +33,40 @@ class Config(object):
     def reload_config_file(self, path):
         self.config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
         self.config.read(path, encoding="utf8")
+
+    def watch_config_on_redis(self, redis_client, service_name, update_config_func):
+        config_init_flag = False
+
+        p = redis_client.pubsub(ignore_subscribe_messages=True)
+
+        def sub():
+            nonlocal config_init_flag
+            p.subscribe("config_change_service-" + service_name)
+            p.subscribe("config_error_service-" + service_name)
+            while True:
+                message = p.get_message()
+                if message:
+                    print(message)
+                    channel = message["channel"].decode()
+                    if channel.startswith("config_change_service"):
+                        c = Config()
+                        c.load_str(message["data"].decode())
+                        config = getattr(c.style_class(), service_name)
+                        update_config_func(config)
+                        config_init_flag = True
+                time.sleep(0.5)
+
+        Thread(target=sub).start()
+        redis_client.publish("config_get_service-" + service_name, None)
+
+        def watch_first_init():
+            while not config_init_flag:
+                time.sleep(0.1)
+            print("config get successfully")
+
+        t = Thread(target=watch_first_init)
+        t.start()
+        t.join()
 
     def load_str(self, _str):
         self.config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
