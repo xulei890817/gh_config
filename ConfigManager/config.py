@@ -11,6 +11,7 @@ import configparser
 import time
 from threading import Thread
 
+
 class BaseConfig(object):
     pass
 
@@ -59,14 +60,14 @@ class Config(object):
         Thread(target=sub).start()
         redis_client.publish("config_get_service-" + service_name, None)
 
-        def watch_first_init():
-            while not config_init_flag:
-                time.sleep(0.1)
-            print("config get successfully")
-
-        t = Thread(target=watch_first_init)
-        t.start()
-        t.join()
+        warn_line = 10
+        counter = 0
+        while not config_init_flag:
+            time.sleep(0.5)
+            counter = counter + 1
+            if counter >= warn_line:
+                raise Exception("Please start  ConfigServer first!")
+        print("config get successfully")
 
     def load_str(self, _str):
         self.config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
