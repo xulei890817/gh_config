@@ -58,7 +58,7 @@ class Config(object):
                 time.sleep(0.5)
 
         Thread(target=sub).start()
-        redis_client.publish("config_get_service-" + service_name, None)
+        redis_client.publish("config_get_service-" + service_name, 1)
 
         warn_line = 10
         counter = 0
